@@ -1,0 +1,54 @@
+id: nyc_taxi_to_bigquery
+namespace: demo.gcp
+
+inputs:
+  - id: csv_file
+    type: STRING
+    defaults: yellow_tripdata_2023-01.csv.gz
+
+variables:
+  project_id: your-gcp-project
+  bucket: your-gcs-bucket
+  dataset: nyc_taxi
+  table: yellow_tripdata
+
+tasks:
+  # Download the NYC Taxi CSV
+  - id: download_csv
+    type: io.kestra.plugin.core.http.Download
+    uri: https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/{{ inputs.csv_file }}
+
+  # Upload the file to Google Cloud Storage
+  - id: upload_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{ outputs.download_csv.uri }}"
+    to: gs://{{ vars.bucket }}/{{ inputs.csv_file }}
+
+  # Create the BigQuery dataset if it doesn't exist
+  - id: create_dataset
+    type: io.kestra.plugin.gcp.bigquery.Query
+    projectId: "{{ vars.project_id }}"
+    sql: |
+      CREATE SCHEMA IF NOT EXISTS `{{ vars.project_id }}.{{ vars.dataset }}`;
+
+  # Load the CSV from GCS into BigQuery
+  - id: load_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.LoadFromGcs
+    projectId: "{{ vars.project_id }}"
+    destinationTable: "{{ vars.project_id }}.{{ vars.dataset }}.{{ vars.table }}"
+    sourceUris:
+      - gs://{{ vars.bucket }}/{{ inputs.csv_file }}
+    format: CSV
+    compression: GZIP
+    autodetect: true
+    skipLeadingRows: 1
+    writeDisposition: WRITE_TRUNCATE
+
+  # Verify the load
+  - id: row_count
+    type: io.kestra.plugin.gcp.bigquery.Query
+    projectId: "{{ vars.project_id }}"
+    fetch: true
+    sql: |
+      SELECT COUNT(*) AS total_rows
+      FROM `{{ vars.project_id }}.{{ vars.dataset }}.{{ vars.table }}`;

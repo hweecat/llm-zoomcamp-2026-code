@@ -1,0 +1,17 @@
+id: nyc_taxi_data_to_bigquery
+namespace: dev.nyc
+
+tasks:
+  - id: download_taxi_data
+    type: io.kestra.plugin.core.http.Download
+    uri: https://storage.googleapis.com/cloud-samples-data/bigquery/sample-data/nyc_taxi_trips.csv
+    saveAs: nyc_taxi_trips.csv
+
+  - id: load_to_bigquery
+    type: io.kestra.plugin.gcp.bigquery.Load
+    from: "{{outputs.download_taxi_data.uri}}"
+    destinationTable: "your_project.your_dataset.nyc_taxi_data" # Replace with your BigQuery project, dataset, and table
+    format: CSV
+    autodetect: true
+    csvOptions:
+      skipLeadingRows: 1 # Assuming the CSV has a header row
