@@ -19,3 +19,9 @@ dependencies = [
     "toyaikit>=0.0.11",
     "tqdm>=4.68.3",
 ]
+
+[tool.uv.workspace]
+members = [
+    "Assignments/llm-zoomcamp-hw5",
+    "Assignments/llm-zoomcamp-hw5/llm-zoomcamp-hw5",
+]
